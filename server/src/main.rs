@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::net::{SocketAddr, TcpStream};
+use std::net::{SocketAddr};
 use std::path::{Path};
 use std::io::{BufReader, ErrorKind, Error as IoError, Result as IoResult};
 use std::error::Error;
@@ -49,6 +49,8 @@ async fn main() -> Result<(), Box<dyn Error>>
 
     let clients_map = Arc::new(Mutex::new(HashMap::<SocketAddr, TlsStream<_>>::new()));
 
+    const BUFF_SIZE: usize = 512;
+
     loop {
 
         let (stream, peer_addr) = listener.accept().await?;
@@ -59,33 +61,29 @@ async fn main() -> Result<(), Box<dyn Error>>
 
         tokio::spawn(async move {
             tracing::info!("connected: ('{}', {})", peer_addr.ip(), peer_addr.port());
-            let mut buf = vec![0; 512];
+            let mut buf = vec![0; BUFF_SIZE];
             
-            // loop 
-            // {
-                let n = tls_stream
+            let n = tls_stream
                         .read(&mut buf)
                         .await
                         .expect("failed to read data from socket");
                 
-                let text_msg = String::from_utf8_lossy(&buf[..n]).to_string();
-                tracing::info!("recv bytes: {} {:?} from peer: {:?}", n, text_msg, peer_addr);
+            let text_msg = String::from_utf8_lossy(&buf[..n]).to_string();
+            tracing::info!("recv bytes: {} {:?} from peer: {:?}", n, text_msg, peer_addr);
                             
+            {
+                let mut clients_mutex = clients_map_cloned.lock().await;
+                tracing::info!("Clients number: {:?}", clients_mutex.len() + 1);
+
+                // Send to all clients
+                for (peer_addr, stream) in clients_mutex.iter_mut() 
                 {
-                    let mut clients_mutex = clients_map_cloned.lock().await;
-                    tracing::info!("Clients number: {:?}", clients_mutex.len() + 1);
-
-                    // Send to all clients
-                    for (peer_addr, stream) in clients_mutex.iter_mut() 
-                    {
-                        stream.write_all(format!("New client: {:?}", peer_addr.clone()).as_str().as_bytes()).await.expect("failed to write data to socket");
-                        tracing::info!("send msg to peer: {:?}", peer_addr);
-                    }
-
-                    clients_mutex.insert(peer_addr, tokio_rustls::TlsStream::Server(tls_stream));
+                    stream.write_all(format!("New client: {:?}", peer_addr.clone()).as_str().as_bytes()).await.expect("failed to write data to socket");
+                    tracing::info!("send msg to peer: {:?}", peer_addr);
                 }
 
-            // }//loop internal
+                clients_mutex.insert(peer_addr, tokio_rustls::TlsStream::Server(tls_stream));
+            }
 
         });
     }

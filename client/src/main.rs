@@ -65,8 +65,10 @@ async fn main() -> Result<(), Box<dyn Error>>
     let stream = TcpStream::connect(&addr).await?;
     let mut tls_stream = connector.connect(domain, stream).await?;
     
+    const BUFF_SIZE: usize = 512;
+
     tracing::info!("connected: '{:?}", tls_stream);
-    let mut buf = vec![0; 512];
+    let mut buf = vec![0; BUFF_SIZE];
 
     loop {
         tls_stream.write_all(b"HELLO").await.expect("failed to write data to socket");
