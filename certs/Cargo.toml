@@ -1,16 +1,15 @@
 [package]
-name = "client"
+name = "certs"
 version = "0.1.0"
 edition = "2018"
 authors = ["Michał Hanusek <mhanusek@o2.pl>"]
 
 [dependencies]
-certs = { path = "../certs" }
 tokio = { version = "=1.21.2", features = ["full"] }
-tokio-rustls = { version = "=0.23.4", features=["dangerous_configuration"] }
 tokio-util = { version = "=0.7.4", features = ["full"]} 
+tokio-rustls = { version = "=0.23.4", features=["dangerous_configuration"] }
+tokio-tungstenite = "0.18.0"
 rustls-pemfile = "=1.0.1"
-rustls = "=0.20.8"
 serde = "=1.0.145"
 serde_json = "1.0.85"
 serde_yaml = "=0.8.18"
@@ -20,3 +19,4 @@ speedy = "=0.8.5"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3.1", default-features = false, features = ["fmt", "ansi", "env-filter", "tracing-log"] }
 futures = "0.3.21"
+futures-util = "0.3.25"
