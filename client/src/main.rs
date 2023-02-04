@@ -8,6 +8,7 @@ use tokio::io::AsyncWriteExt;
 use tokio::io::AsyncReadExt;
 use tokio_rustls::TlsConnector;
 use tokio_rustls::rustls::ServerName;
+use tokio::time::{sleep, Duration};
 
 use certs::create_client_config;
 
@@ -36,6 +37,8 @@ async fn main() -> Result<(), Box<dyn Error>>
     let mut buf = vec![0; BUFF_SIZE];
 
     loop {
+        sleep(Duration::from_millis(100)).await;
+
         tls_stream.write_all(b"HELLO").await.expect("failed to write data to socket");
 
         match tls_stream.read(&mut buf).await
@@ -43,6 +46,9 @@ async fn main() -> Result<(), Box<dyn Error>>
             Err(_e) => {},
             Ok(n) => {
                 if n != 0 { 
+                    //tracing::info!("recv : {} from server", n);
+                    //tracing::info!("recv text: {} {:?} from server", n, &buf[..n]);
+
                     let text = String::from_utf8_lossy(&buf[..n]).to_string();
                     tracing::info!("recv text: {} {:?} from server", n, text);
                 }
