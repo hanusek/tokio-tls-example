@@ -121,86 +121,152 @@ impl Shared {
     }
 }
 
-#[derive(Debug)]
-enum MyStream
-{
-  WebsocketTls(WebSocketStream<TlsStream<TcpStream>>),
-  Tls(tokio_rustls::server::TlsStream<tokio::net::TcpStream>),
-}
+// #[derive(Debug)]
+// enum MyStream
+// {
+//   WebsocketTls(WebSocketStream<TlsStream<TcpStream>>),
+//   Tls(tokio_rustls::server::TlsStream<tokio::net::TcpStream>),
+// }
 
-async fn process_stream(
-    state: Arc<Mutex<Shared>>,
-    stream: MyStream,
-    addr: SocketAddr,
-) -> Result<(), Box<dyn Error>> 
-{   
-    match stream
+// async fn process_stream(
+//     state: Arc<Mutex<Shared>>,
+//     stream: MyStream,
+//     addr: SocketAddr,
+// ) -> Result<(), Box<dyn Error>> 
+// {   
+//     match stream
+//     {
+//         MyStream::Tls(s) => { 
+//             let framed = Framed::new(s, BytesCodec::new());
+//             let mut peer = Peer::new(state.clone(), framed).await?;
+//             loop 
+//             {
+//                 tokio::select! {
+//                     // A message was received from a peer. Send it to the current user.
+//                     Some(msg) = peer.rx.recv() => {
+//                         tracing::warn!("send to: {:?}, msg: {:?}", peer.lines, msg);
+//                         peer.lines.send(msg).await?; //NOTE: send to peer
+//                     }
+//                     result = peer.lines.next() => 
+//                     {
+//                         match result {
+//                             // A message was received from the current user, we should
+//                             // broadcast this message to the other users.
+//                             Some(Ok(msg)) => {
+//                                 tracing::warn!("send to: {:?}, msg: {:?}", peer.lines, msg);
+//                                 peer.lines.send(msg).await?;
+//                             }
+//                             // An error occurred.
+//                             Some(Err(e)) => {
+//                                 tracing::error!("error = {:?}", e);
+//                             }
+//                             // The stream has been exhausted.
+//                             None => break,
+//                         };
+//                     }
+//                 }
+//             }
+//         },
+//         MyStream::WebsocketTls(s) => {
+//             let mut peer = PeerWs::new(state.clone(), s).await?;
+//             loop 
+//             {
+//                 tokio::select! {
+//                     // A message was received from a peer. Send it to the current user.
+//                     Some(msg) = peer.rx.recv() => {
+//                         tracing::warn!("send to: {:?}, msg: {:?}", peer.ws, msg);
+//                         let ws_msg = tungstenite::protocol::Message::Binary(msg.to_vec());
+//                         peer.ws.send(ws_msg).await?;
+//                     }
+//                     result = peer.ws.next() => 
+//                     {
+//                         match result {
+//                             // A message was received from the current user, we should
+//                             // broadcast this message to the other users.
+//                             Some(Ok(msg)) => {
+//                                 tracing::warn!("send to: {:?}, Send msg: {:?}", peer.ws.get_ref().get_ref().0.peer_addr().unwrap(), msg);
+//                                 peer.ws.send(msg).await?;
+//                             }
+//                             // An error occurred.
+//                             Some(Err(e)) => {
+//                                 tracing::error!("error = {:?}", e);
+//                             }
+//                             // The stream has been exhausted.
+//                             None => break,
+//                         };
+//                     }
+//                 }
+//             }
+//         }
+//     };
+
+//     Ok(())
+// }
+
+
+async fn process_ws_stream(state: Arc<Mutex<Shared>>, mut peer: PeerWs, addr: SocketAddr) -> Result<(), Box<dyn Error>> 
+{
+    loop 
     {
-        MyStream::Tls(s) => { 
-            let framed = Framed::new(s, BytesCodec::new());
-            let mut peer = Peer::new(state.clone(), framed).await?;
-            loop 
-            {
-                tokio::select! {
-                    // A message was received from a peer. Send it to the current user.
-                    Some(msg) = peer.rx.recv() => {
-                        tracing::warn!("send to: {:?}, msg: {:?}", peer.lines, msg);
-                        peer.lines.send(msg).await?; //NOTE: send to peer
-                    }
-                    result = peer.lines.next() => 
-                    {
-                        match result {
-                            // A message was received from the current user, we should
-                            // broadcast this message to the other users.
-                            Some(Ok(msg)) => {
-                                tracing::warn!("send to: {:?}, msg: {:?}", peer.lines, msg);
-                                peer.lines.send(msg).await?;
-                            }
-                            // An error occurred.
-                            Some(Err(e)) => {
-                                tracing::error!("error = {:?}", e);
-                            }
-                            // The stream has been exhausted.
-                            None => break,
-                        };
-                    }
-                }
+        tokio::select! {
+            // A message was received from a peer. Send it to the current user.
+            Some(msg) = peer.rx.recv() => {
+                tracing::warn!("send to: {:?}, msg: {:?}", peer.ws, msg);
+                let ws_msg = tungstenite::protocol::Message::Binary(msg.to_vec());
+                peer.ws.send(ws_msg).await?;
             }
-        },
-        MyStream::WebsocketTls(s) => {
-            let mut peer = PeerWs::new(state.clone(), s).await?;
-            loop 
+            result = peer.ws.next() => 
             {
-                tokio::select! {
-                    // A message was received from a peer. Send it to the current user.
-                    Some(msg) = peer.rx.recv() => {
-                        tracing::warn!("send to: {:?}, msg: {:?}", peer.ws, msg);
-                        let ws_msg = tungstenite::protocol::Message::Binary(msg.to_vec());
-                        peer.ws.send(ws_msg).await?;
+                match result {
+                    // A message was received from the current user, we should
+                    // broadcast this message to the other users.
+                    Some(Ok(msg)) => {
+                        tracing::warn!("send to: {:?}, Send msg: {:?}", peer.ws.get_ref().get_ref().0.peer_addr().unwrap(), msg);
+                        peer.ws.send(msg).await?;
                     }
-                    result = peer.ws.next() => 
-                    {
-                        match result {
-                            // A message was received from the current user, we should
-                            // broadcast this message to the other users.
-                            Some(Ok(msg)) => {
-                                tracing::warn!("send to: {:?}, Send msg: {:?}", peer.ws.get_ref().get_ref().0.peer_addr().unwrap(), msg);
-                                peer.ws.send(msg).await?;
-                            }
-                            // An error occurred.
-                            Some(Err(e)) => {
-                                tracing::error!("error = {:?}", e);
-                            }
-                            // The stream has been exhausted.
-                            None => break,
-                        };
+                    // An error occurred.
+                    Some(Err(e)) => {
+                        tracing::error!("error = {:?}", e);
                     }
-                }
+                    // The stream has been exhausted.
+                    None => break,
+                };
             }
         }
-    };
+    }
+    return Ok(());
+}
 
-    Ok(())
+async fn process_tls_stream(state: Arc<Mutex<Shared>>, mut peer: Peer, addr: SocketAddr) -> Result<(), Box<dyn Error>> 
+{
+    loop 
+    {
+        tokio::select! {
+            // A message was received from a peer. Send it to the current user.
+            Some(msg) = peer.rx.recv() => {
+                tracing::warn!("send to: {:?}, msg: {:?}", peer.lines, msg);
+                peer.lines.send(msg).await?; //NOTE: send to peer
+            }
+            result = peer.lines.next() => 
+            {
+                match result {
+                    // A message was received from the current user, we should
+                    // broadcast this message to the other users.
+                    Some(Ok(msg)) => {
+                        tracing::warn!("send to: {:?}, msg: {:?}", peer.lines, msg);
+                        peer.lines.send(msg).await?;
+                    }
+                    // An error occurred.
+                    Some(Err(e)) => {
+                        tracing::error!("error = {:?}", e);
+                    }
+                    // The stream has been exhausted.
+                    None => break,
+                };
+            }
+        }
+    }
+    return Ok(());
 }
 
 #[tokio::main]
@@ -229,30 +295,40 @@ async fn main() -> Result<(), Box<dyn Error>>
 
     loop {
 
-        let (stream, addr) = tokio::select! {
+        tokio::select! {
             res1 = plain_listener.accept() =>  {
                 let (stream, addr) = res1.unwrap();
                 let acceptor = TlsAcceptor::from(cfg.clone());
                 let tls_stream = acceptor.accept(stream).await.unwrap();
-                (MyStream::Tls(tls_stream), addr)
+                let peer = Peer::new(state.clone(), Framed::new(tls_stream, BytesCodec::new())).await?;
+
+                let state = Arc::clone(&state);
+
+                tokio::spawn(async move {
+                    tracing::debug!("accepted connection");
+                    if let Err(e) = process_tls_stream(state, peer, addr).await {
+                        tracing::info!("an error occurred; error = {:?}", e);
+                    }
+                });
             }
             res2 = websocket_listener.accept() =>  { 
                 let (stream, addr) = res2.unwrap();
                 let acceptor = TlsAcceptor::from(cfg.clone());
                 let tls_stream = acceptor.accept(stream).await.unwrap();
                 let ws_stream = tokio_tungstenite::accept_async(tls_stream).await.unwrap();        
-                (MyStream::WebsocketTls(ws_stream), addr)
+                let peer = PeerWs::new(state.clone(), ws_stream).await?;
+                
+                let state = Arc::clone(&state);
+
+                tokio::spawn(async move {
+                    tracing::debug!("accepted connection");
+                    if let Err(e) = process_ws_stream(state, peer, addr).await {
+                        tracing::info!("an error occurred; error = {:?}", e);
+                    }
+                });
             },
         };
 
-        let state = Arc::clone(&state);
-
-        tokio::spawn(async move {
-            //tracing::debug!("accepted connection");
-            if let Err(e) = process_stream(state, stream, addr).await {
-                tracing::info!("an error occurred; error = {:?}", e);
-            }
-        });
     }
 }
 
