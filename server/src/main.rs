@@ -1,5 +1,4 @@
 use certs::{load_keys, load_certs};
-//use tokio_util::net::Listener;
 use std::io::{ErrorKind, Error as IoError};
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -122,79 +121,6 @@ impl Shared {
     }
 }
 
-
-
-// /// Process an individual chat client
-// async fn process(
-//     state: Arc<Mutex<Shared>>,
-//     stream: TlsStream<TcpStream>,
-//     addr: SocketAddr,
-// ) -> Result<(), Box<dyn Error>> 
-// {
-//     let bytes = Framed::new(stream, BytesCodec::new());
-//     let mut peer = Peer::new(state.clone(), bytes).await?;
-
-//     loop {
-//         tokio::select! {
-//             // A message was received from a peer. Send it to the current user.
-//             Some(msg) = peer.rx.recv() => {
-//                 tracing::warn!("send to: {:?}, msg: {:?}", peer.lines, msg);
-//                 peer.lines.send(msg).await?; //NOTE: send to peer
-//             }
-//             result = peer.lines.next() => 
-//             {
-//                 match result {
-//                     // A message was received from the current user, we should
-//                     // broadcast this message to the other users.
-//                     Some(Ok(msg)) => {
-//                         tracing::warn!("send to: {:?}, msg: {:?}", peer.lines, msg);
-//                         peer.lines.send(msg).await?;
-
-//                         // {
-//                         //     let mut processor = processor.lock().await;
-//                         //     let addr = peer.lines.get_ref().get_ref().0.peer_addr()?;
-//                         //     let data: Vec<u8> = msg.into();
-//                         //     let frames = processor.process(addr, &data);
-//                         //     for f in frames 
-//                         //     {
-//                         //         let msg = Bytes::from(f.bytes);
-//                         //         match f.peer
-//                         //         {
-//                         //             Some(p) => {
-//                         //                 {
-//                         //                     let mut state = state.lock().await;
-//                         //                     state.send_to_peer(p, &msg).await;
-//                         //                 }
-//                         //             },
-//                         //             None => {
-//                         //                 tracing::warn!("send to: {:?}, msg: {:?}", peer.lines, msg);
-//                         //                 peer.lines.send(msg).await?;
-//                         //             }
-//                         //         };
-//                         //     }
-//                         // }
-//                     }
-//                     // An error occurred.
-//                     Some(Err(e)) => {
-//                         tracing::error!("error = {:?}", e);
-//                     }
-//                     // The stream has been exhausted.
-//                     None => break,
-//                 };
-//             }
-//         }
-//     }
-
-//     // If this section is reached it means that the client was disconnected!
-//     // Let's let everyone still connected know about it.
-//     {
-//         let mut state = state.lock().await;
-//         state.peers.remove(&addr);
-//     }
-
-//     Ok(())
-// }
-
 #[derive(Debug)]
 enum MyStream
 {
@@ -277,35 +203,6 @@ async fn process_stream(
     Ok(())
 }
 
-   //let bytes = Framed::new(stream, BytesCodec::new());
-    //let mut peer = Peer::new(state.clone(), bytes).await?;
-
-    // loop {
-    //     tokio::select! {
-    //         // A message was received from a peer. Send it to the current user.
-    //         Some(msg) = peer.rx.recv() => {
-    //             tracing::warn!("send to: {:?}, msg: {:?}", peer.lines, msg);
-    //             peer.lines.send(msg).await?; //NOTE: send to peer
-    //         }
-    //         result = peer.lines.next() => 
-    //         {
-    //             match result {
-    //                 // A message was received from the current user, we should
-    //                 // broadcast this message to the other users.
-    //                 Some(Ok(msg)) => {
-    //                     tracing::warn!("send to: {:?}, msg: {:?}", peer.lines, msg);
-    //                     peer.lines.send(msg).await?;
-    //                 }
-    //                 // An error occurred.
-    //                 Some(Err(e)) => {
-    //                     tracing::error!("error = {:?}", e);
-    //                 }
-    //                 // The stream has been exhausted.
-    //                 None => break,
-    //             };
-    //         }
-    //     }
-    // }
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> 
 {
