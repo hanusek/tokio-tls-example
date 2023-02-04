@@ -170,6 +170,7 @@ async fn process_ws_stream(state: Arc<Mutex<Shared>>, mut peer: PeerWs, addr: So
                     
                             let msg = format!("{} has left", addr);
                             tracing::info!("{}", msg);
+                            tracing::info!("clients: {}", state.get_clients_number());
                             state.broadcast(addr, &Bytes::from(msg)).await;
                         }
                         break
@@ -216,6 +217,8 @@ async fn process_tls_stream(state: Arc<Mutex<Shared>>, mut peer: Peer, addr: Soc
                     
                             let msg = format!("{} has left", addr);
                             tracing::info!("{}", msg);
+                            tracing::info!("clients: {}", state.get_clients_number());
+
                             state.broadcast(addr, &Bytes::from(msg)).await;
                         }                        
                         break 
@@ -252,10 +255,11 @@ async fn main() -> Result<(), Box<dyn Error>>
     let state = Arc::new(Mutex::new(Shared::new()));
 
     loop {
-
         tokio::select! {
-            res1 = plain_listener.accept() =>  {
-                let (stream, addr) = res1.unwrap();
+            plain_accept_result = plain_listener.accept() =>  {
+                let (stream, addr) = plain_accept_result.unwrap();
+                tracing::info!("accepted connection");
+
                 let acceptor = TlsAcceptor::from(cfg.clone());
                 let tls_stream = acceptor.accept(stream).await.unwrap();
                 let peer = Peer::new(state.clone(), Framed::new(tls_stream, BytesCodec::new())).await?;
@@ -265,18 +269,19 @@ async fn main() -> Result<(), Box<dyn Error>>
                 {
                     let mut state = state.lock().await;
                     state.broadcast(addr, &Bytes::from("new tls client")).await;
-                    tracing::debug!("clients: {}", state.get_clients_number());
+                    tracing::info!("clients: {}", state.get_clients_number());
                 }
 
                 tokio::spawn(async move {
-                    tracing::debug!("accepted connection");
                     if let Err(e) = process_tls_stream(state, peer, addr).await {
                         tracing::info!("an error occurred; error = {:?}", e);
                     }
                 });
             }
-            res2 = websocket_listener.accept() =>  { 
-                let (stream, addr) = res2.unwrap();
+            websocket_accept_result = websocket_listener.accept() =>  { 
+                let (stream, addr) = websocket_accept_result.unwrap();
+                tracing::info!("accepted connection");
+
                 let acceptor = TlsAcceptor::from(cfg.clone());
                 let tls_stream = acceptor.accept(stream).await.unwrap();
                 let ws_stream = tokio_tungstenite::accept_async(tls_stream).await.unwrap();        
@@ -287,11 +292,10 @@ async fn main() -> Result<(), Box<dyn Error>>
                 {
                     let mut state = state.lock().await;
                     state.broadcast(addr, &Bytes::from("new websocket client")).await;
-                    tracing::debug!("clients: {}", state.get_clients_number());
+                    tracing::info!("clients: {}", state.get_clients_number());
                 }
 
                 tokio::spawn(async move {
-                    tracing::debug!("accepted connection");
                     if let Err(e) = process_ws_stream(state, peer, addr).await {
                         tracing::info!("an error occurred; error = {:?}", e);
                     }
