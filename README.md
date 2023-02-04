@@ -1,2 +1,2 @@
-# tokio-tls-example
-Tokio.rs TLS example (client/server)
+# tokio-tls-websockets-example
+Tokio.rs + TLS + Websockets example (client/server)
