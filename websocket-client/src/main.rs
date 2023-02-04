@@ -24,15 +24,23 @@ async fn main()
     let (mut ws_stream, _) = connect_async_with_tls_connector(url, Some(connector)).await.expect("Failed to connect");
 
     loop {
-        sleep(Duration::from_millis(100)).await;
+        sleep(Duration::from_millis(500)).await;
 
         tracing::info!("sending..");
 
-        ws_stream.send(Message::Text("HELLO".into())).await.unwrap();
+        ws_stream.send(Message::Binary("HELLO from websocket".into())).await.unwrap();
         
         if let Some(msg) = ws_stream.next().await
         {
-            tracing::info!("recv text: {:?} from server", msg.unwrap());
+            let ws_msg = msg.unwrap();
+            match ws_msg
+            {
+                Message::Binary(v) => {
+                    let text = String::from_utf8_lossy(&v).to_string();
+                    tracing::info!("recv text: {:?} from server", text);
+                },
+                _ => {}
+            };
         }
 
         // while let Some(msg) = ws_stream.next().await {

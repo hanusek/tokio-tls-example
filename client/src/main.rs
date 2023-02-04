@@ -37,9 +37,9 @@ async fn main() -> Result<(), Box<dyn Error>>
     let mut buf = vec![0; BUFF_SIZE];
 
     loop {
-        sleep(Duration::from_millis(100)).await;
+        sleep(Duration::from_millis(500)).await;
 
-        tls_stream.write_all(b"HELLO").await.expect("failed to write data to socket");
+        tls_stream.write_all(b"HELLO from classic tls").await.expect("failed to write data to socket");
 
         match tls_stream.read(&mut buf).await
         {
