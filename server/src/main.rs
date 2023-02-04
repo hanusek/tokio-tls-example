@@ -78,7 +78,6 @@ impl PeerWs {
         ws: WebSocketStream<TlsStream<TcpStream>>,
     ) -> std::io::Result<Self> {
         // Get the client socket address
-        //let addr = lines.get_ref().get_ref().0.peer_addr()?;
         let addr = ws.get_ref().get_ref().0.peer_addr()?;
 
         // Create a channel for this peer
@@ -164,7 +163,17 @@ async fn process_ws_stream(state: Arc<Mutex<Shared>>, mut peer: PeerWs, addr: So
                         tracing::error!("error = {:?}", e);
                     }
                     // The stream has been exhausted.
-                    None => break,
+                    None => { 
+                        {
+                            let mut state = state.lock().await;
+                            state.peers.remove(&addr);
+                    
+                            let msg = format!("{} has left", addr);
+                            tracing::info!("{}", msg);
+                            state.broadcast(addr, &Bytes::from(msg)).await;
+                        }
+                        break
+                    },
                 };
             }
         }
@@ -200,7 +209,17 @@ async fn process_tls_stream(state: Arc<Mutex<Shared>>, mut peer: Peer, addr: Soc
                         tracing::error!("error = {:?}", e);
                     }
                     // The stream has been exhausted.
-                    None => break,
+                    None => { 
+                        {
+                            let mut state = state.lock().await;
+                            state.peers.remove(&addr);
+                    
+                            let msg = format!("{} has left", addr);
+                            tracing::info!("{}", msg);
+                            state.broadcast(addr, &Bytes::from(msg)).await;
+                        }                        
+                        break 
+                    },
                 };
             }
         }
