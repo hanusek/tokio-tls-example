@@ -148,15 +148,11 @@ async fn process_ws_stream(state: Arc<Mutex<Shared>>, mut peer: PeerWs, addr: So
 
                         tracing::warn!("msg: {:?}", msg);
 
-                        match msg
-                        {
-                            tungstenite::protocol::Message::Binary(v) => {
-                                {
-                                    state.lock().await.broadcast(addr, &Bytes::from(v)).await;
-                                }
-                            },
-                            _ => {}
-                        };
+                        if let tungstenite::protocol::Message::Binary(v) = msg {
+                            {
+                                state.lock().await.broadcast(addr, &Bytes::from(v)).await;
+                            }
+                        }
                     }
                     // An error occurred.
                     Some(Err(e)) => {
@@ -173,13 +169,12 @@ async fn process_ws_stream(state: Arc<Mutex<Shared>>, mut peer: PeerWs, addr: So
                             tracing::info!("clients: {}", state.get_clients_number());
                             state.broadcast(addr, &Bytes::from(msg)).await;
                         }
-                        break
+                        return Ok(());
                     },
                 };
             }
         }
     }
-    return Ok(());
 }
 
 async fn process_tls_stream(state: Arc<Mutex<Shared>>, mut peer: Peer, addr: SocketAddr) -> Result<(), Box<dyn Error>> 
@@ -221,13 +216,12 @@ async fn process_tls_stream(state: Arc<Mutex<Shared>>, mut peer: Peer, addr: Soc
 
                             state.broadcast(addr, &Bytes::from(msg)).await;
                         }                        
-                        break 
+                        return Ok(());
                     },
                 };
             }
         }
     }
-    return Ok(());
 }
 
 #[tokio::main]
@@ -235,8 +229,8 @@ async fn main() -> Result<(), Box<dyn Error>>
 {
     tracing_subscriber::fmt().init();
 
-    let certs = load_certs(&Path::new("../keys/eddsa-ca.cert"))?;
-    let keys = load_keys(&Path::new("../keys/Ed25519_private_key.pem"))?;
+    let certs = load_certs(Path::new("../keys/eddsa-ca.cert"))?;
+    let keys = load_keys(Path::new("../keys/Ed25519_private_key.pem"))?;
 
     let private_key = keys.get(0).unwrap().clone();
     let _cert = certs.get(0).unwrap().clone();
